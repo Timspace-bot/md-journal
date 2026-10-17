@@ -33,7 +33,7 @@ export default class MdJournalPlugin extends Plugin {
       },
     });
     this.addJournalCommand('insert-date-heading', 'Insert date heading', (v) => {
-      v.editor.insertBlock('## ' + moment().format(this.settings.dateFormat || DEFAULT_SETTINGS.dateFormat));
+      v.editor.insertBlock('## ' + moment().format(this.config.dateFormat || DEFAULT_SETTINGS.dateFormat));
     });
     this.addJournalCommand('insert-page-break', 'Insert page break', (v) => v.editor.insertBlock(PAGEBREAK_LINE));
     this.addJournalCommand('next-page', 'Next page', (v) => v.editor.flip(1));
@@ -44,10 +44,10 @@ export default class MdJournalPlugin extends Plugin {
       id: 'toggle-fixed-page',
       name: 'Toggle fixed page in the theme view',
       callback: async () => {
-        this.settings.fixedPage = !this.settings.fixedPage;
+        this.config.fixedPage = !this.config.fixedPage;
         await this.saveSettings();
         this.refreshViews();
-        new Notice(this.settings.fixedPage ? 'Fixed page: every page keeps the same text when the window is resized.' : 'Pages now fill the window.');
+        new Notice(this.config.fixedPage ? 'Fixed page: every page keeps the same text when the window is resized.' : 'Pages now fill the window.');
       },
     });
 
@@ -83,23 +83,23 @@ export default class MdJournalPlugin extends Plugin {
 
   async loadSettings() {
     const data = (await this.loadData()) || {};
-    this.settings = { ...DEFAULT_SETTINGS, ...data };
-    if (!this.settings.positions || typeof this.settings.positions !== 'object') this.settings.positions = {};
+    this.config = { ...DEFAULT_SETTINGS, ...data };
+    if (!this.config.positions || typeof this.config.positions !== 'object') this.config.positions = {};
   }
 
-  async saveSettings() { await this.saveData(this.settings); }
+  async saveSettings() { await this.saveData(this.config); }
 
   refreshViews(repaint) {
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_JOURNAL)) {
       const view = leaf.view;
       if (!(view instanceof JournalView) || !view.editor) continue;
-      view.editor.configure(this.settings);
+      view.editor.configure(this.config);
       if (repaint) view.editor.repaint();
     }
   }
 
   async toggleLayout() {
-    this.settings.layout = this.settings.layout === 'screen' ? 'journal' : 'screen';
+    this.config.layout = this.config.layout === 'screen' ? 'journal' : 'screen';
     await this.saveSettings();
     this.refreshViews();
   }
@@ -108,7 +108,7 @@ export default class MdJournalPlugin extends Plugin {
     const ws = this.app.workspace;
     const existing = ws.getLeavesOfType(VIEW_TYPE_JOURNAL).find((l) => l.view instanceof JournalView && l.view.file === file);
     if (existing) { ws.setActiveLeaf(existing, { focus: true }); return; }
-    const where = this.settings.openIn;
+    const where = this.config.openIn;
     const leaf = where === 'current' ? ws.getLeaf(false) : where === 'split' ? ws.getLeaf('split') : ws.getLeaf('tab');
     await leaf.setViewState({ type: VIEW_TYPE_JOURNAL, state: { file: file.path }, active: true });
     ws.setActiveLeaf(leaf, { focus: true });
@@ -124,7 +124,7 @@ export default class MdJournalPlugin extends Plugin {
   }
 
   async openJournal() {
-    let path = normalizePath(this.settings.journalFile || 'Journal.md');
+    let path = normalizePath(this.config.journalFile || 'Journal.md');
     if (!/\.md$/i.test(path)) path += '.md';
     let file = this.app.vault.getAbstractFileByPath(path);
     if (!file) {

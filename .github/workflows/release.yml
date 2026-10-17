@@ -27,6 +27,7 @@ jobs:
           npm ci
           npm test
           npm run lint
+          npm run lint:scanner
           npm run build
 
       - name: Check the tag matches manifest.json

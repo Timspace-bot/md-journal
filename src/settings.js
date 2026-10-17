@@ -33,7 +33,7 @@ function addCommon(el, s, apply) {
 }
 
 export function addAppearanceSettings(el, plugin, redisplay) {
-  const s = plugin.settings;
+  const s = plugin.config;
   const apply = async () => { await plugin.saveSettings(); plugin.refreshViews(); };
 
   new Setting(el).setName('Layout').setDesc('The theme view uses your normal theme. Journal pages are a fixed size, on paper.')
@@ -113,7 +113,7 @@ export class JournalSettingTab extends PluginSettingTab {
 
   display() {
     const el = this.containerEl;
-    const s = this.plugin.settings;
+    const s = this.plugin.config;
     const save = () => this.plugin.saveSettings();
     el.empty();
     new Setting(el).setName('Journal note').setDesc('The note that the ribbon button opens. It is created if it does not exist.')

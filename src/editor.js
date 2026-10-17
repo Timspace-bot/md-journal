@@ -925,7 +925,7 @@ export class PagedEditor {
     const dt = e.clipboardData;
     if (!dt) return;
     const files = Array.from(dt.files || []).filter((f) => /^image\//.test(f.type));
-    if (files.length && this.host.saveAttachment) { this.insertFiles(files); return; }
+    if (files.length && this.host.saveAttachment) { void this.insertFiles(files); return; }
     const text = dt.getData('text/plain');
     const sel = this.currentSel();
     if (!text || !sel) return;
@@ -939,7 +939,7 @@ export class PagedEditor {
     const r = this.doc.caretRangeFromPoint ? this.doc.caretRangeFromPoint(e.clientX, e.clientY) : null;
     const pos = r && this.posFromDOM(r.startContainer, r.startOffset);
     if (pos) { this.content.focus({ preventScroll: true }); this.setSelection(pos, pos); }
-    this.insertFiles(files);
+    void this.insertFiles(files);
   }
 
   async insertFiles(files) {

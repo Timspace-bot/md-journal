@@ -1,6 +1,6 @@
 {
   "name": "md-journal",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Obsidian plugin: write on book pages that fill and continue onto the next page.",
   "type": "module",
   "main": "main.js",
@@ -9,7 +9,8 @@
     "build": "node esbuild.config.mjs production",
     "lint": "eslint src",
     "test": "node tests/logic.mjs",
-    "harness": "node tests/build-harness.mjs && node tests/serve.cjs"
+    "harness": "node tests/build-harness.mjs && node tests/serve.cjs",
+    "lint:scanner": "eslint -c eslint.scanner.config.mjs src --quiet"
   },
   "author": "Timspace-bot",
   "license": "MIT",
@@ -18,6 +19,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-obsidianmd": "^0.4.2",
     "obsidian": "^1.14.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.71.2"
   }
 }

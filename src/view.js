@@ -34,11 +34,11 @@ export class JournalView extends FileView {
       saveAttachment: (file) => this.saveAttachment(file),
       highlight: (code, lang) => prismLines(this.plugin.prism, code, lang),
     };
-    this.editor = new PagedEditor(this.contentEl, host, this.plugin.settings);
+    this.editor = new PagedEditor(this.contentEl, host, this.plugin.config);
     return this.editor;
   }
 
-  async onOpen() {
+  onOpen() {
     this.ensureEditor();
     this.addAction('pencil', 'Edit as Markdown', () => { void this.plugin.switchLeaf(this.leaf, 'markdown'); });
     this.addAction('type', 'Journal appearance', () => new AppearanceModal(this.app, this.plugin).open());
@@ -47,12 +47,13 @@ export class JournalView extends FileView {
     this.registerEvent(this.app.vault.on('delete', (f) => { if (f === this.file) this.dirty = false; }));
     this.registerEvent(this.app.vault.on('rename', (f, oldPath) => {
       if (f !== this.file) return;
-      const pos = this.plugin.settings.positions;
+      const pos = this.plugin.config.positions;
       if (pos[oldPath]) { pos[f.path] = pos[oldPath]; delete pos[oldPath]; void this.plugin.saveSettings(); }
     }));
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
       if (leaf === this.leaf && this.editor && this.file) this.editor.focus();
     }));
+    return Promise.resolve();
   }
 
   async onClose() {
@@ -82,8 +83,8 @@ export class JournalView extends FileView {
     this.lastSaved = text;
     let caret = null;
     if (initial) {
-      const saved = this.plugin.settings.positions[this.file.path];
-      caret = this.plugin.settings.openAt === 'last' && saved ? saved : { line: Infinity, ch: Infinity };
+      const saved = this.plugin.config.positions[this.file.path];
+      caret = this.plugin.config.openAt === 'last' && saved ? saved : { line: Infinity, ch: Infinity };
     }
     this.editor.setText(body, { resetHistory: initial, caret });
     this.editor.setStatus('');
@@ -101,7 +102,7 @@ export class JournalView extends FileView {
     this.dirty = true;
     this.editor.setStatus('Editing…');
     window.clearTimeout(this.saveTimer);
-    this.saveTimer = window.setTimeout(() => { void this.flush(); }, Math.max(100, this.plugin.settings.saveDelay || 700));
+    this.saveTimer = window.setTimeout(() => { void this.flush(); }, Math.max(100, this.plugin.config.saveDelay || 700));
   }
 
   async flush(file = this.file) {
@@ -143,9 +144,9 @@ export class JournalView extends FileView {
     window.clearTimeout(this.posTimer);
     if (!file || !this.editor || !this.editor.sel) return;
     const h = this.editor.sel.head;
-    const prev = this.plugin.settings.positions[file.path];
+    const prev = this.plugin.config.positions[file.path];
     if (prev && prev.line === h.line && prev.ch === h.ch) return;
-    this.plugin.settings.positions[file.path] = { line: h.line, ch: h.ch };
+    this.plugin.config.positions[file.path] = { line: h.line, ch: h.ch };
     void this.plugin.saveSettings();
   }
 

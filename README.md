@@ -140,6 +140,7 @@ npm install
 npm run build     # src/ -> main.js (esbuild)
 npm run dev       # rebuild on change
 npm run lint      # Obsidian's official ESLint rules
+npm run lint:scanner  # the same rules with type information, as the community directory scanner runs them
 npm test          # Markdown, page geometry and code highlighting logic
 npm run harness   # http://localhost:5178/tests/harness.html — the editor in a browser
 ```
