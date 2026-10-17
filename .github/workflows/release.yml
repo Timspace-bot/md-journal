@@ -6,15 +6,18 @@ on:
       - "*.*.*"
 
 permissions:
-  contents: write
+  contents: write           # create the GitHub release
+  id-token: write           # sign the build provenance (Sigstore)
+  attestations: write       # store the attestation
+  artifact-metadata: write  # artifact storage record
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -32,6 +35,16 @@ jobs:
           if [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
             echo "Tag $GITHUB_REF_NAME does not match manifest version $VERSION"; exit 1
           fi
+
+      # Lets anyone verify the release files were built here, from this commit:
+      #   gh attestation verify main.js --repo Timspace-bot/md-journal
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
 
       - name: Create release
         env:

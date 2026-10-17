@@ -1,6 +1,6 @@
 {
   "name": "md-journal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Obsidian plugin: write on book pages that fill and continue onto the next page.",
   "type": "module",
   "main": "main.js",
