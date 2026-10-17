@@ -1,0 +1,306 @@
+/* ===== MD Journal — fixed-size pages you write on ===== */
+
+.workspace-leaf-content[data-type="md-journal-view"] .view-content.mj-view-content {
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Colours. The theme set is the default; tints override it locally, so only the
+   journal changes and the rest of Obsidian keeps its theme. */
+.mj-root {
+  --mj-desk: var(--background-secondary);
+  --mj-paper: var(--background-primary);
+  --mj-ink: var(--text-normal);
+  --mj-muted: var(--text-muted);
+  --mj-faint: var(--text-faint);
+  --mj-rule: var(--background-modifier-border);
+  --mj-accent: var(--text-accent);
+  --mj-hl: rgba(255, 208, 0, 0.35);
+  --mj-shade: rgba(0, 0, 0, 0.16);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: clip;
+  background: var(--mj-desk);
+}
+.mj-root.mj-tint-white { --mj-desk: #d5d3ce; --mj-paper: #fefdfb; --mj-ink: #24221f; --mj-muted: #6a665f; --mj-faint: #a09b92; --mj-rule: rgba(70, 105, 160, 0.2); --mj-accent: #2f5d93; }
+.mj-root.mj-tint-cream { --mj-desk: #c9c0ad; --mj-paper: #f9f3e3; --mj-ink: #38322a; --mj-muted: #6f6556; --mj-faint: #a39883; --mj-rule: rgba(130, 105, 60, 0.22); --mj-accent: #7a5327; }
+.mj-root.mj-tint-sepia { --mj-desk: #b3a184; --mj-paper: #efe2c6; --mj-ink: #43372a; --mj-muted: #766551; --mj-faint: #a08b71; --mj-rule: rgba(120, 85, 40, 0.26); --mj-accent: #86532a; }
+.mj-root.mj-tint-gray { --mj-desk: #b4b4b0; --mj-paper: #e8e8e5; --mj-ink: #2f3236; --mj-muted: #63666a; --mj-faint: #919497; --mj-rule: rgba(0, 0, 0, 0.13); --mj-accent: #3f5b69; }
+.mj-root.mj-tint-night { --mj-desk: #050506; --mj-paper: #19191d; --mj-ink: #b9b4ab; --mj-muted: #7d7870; --mj-faint: #524f4a; --mj-rule: rgba(255, 255, 255, 0.075); --mj-accent: #96aabc; --mj-hl: rgba(200, 160, 0, 0.3); --mj-shade: rgba(0, 0, 0, 0.5); }
+
+/* ----- the desk and the book ----- */
+.mj-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: clip;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: pan-y pinch-zoom;
+}
+.mj-book { position: relative; flex: none; }
+.mj-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  overflow: clip;
+  border-radius: 3px;
+  background: var(--mj-paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 14px 34px rgba(0, 0, 0, 0.22);
+}
+.mj-track { position: absolute; left: 0; top: 0; height: 100%; will-change: transform; }
+
+.mj-paper {
+  position: absolute;
+  top: 0;
+  width: var(--mj-page-w);
+  height: var(--mj-page-h);
+  background: var(--mj-paper);
+  cursor: text;
+}
+.mj-rules {
+  position: absolute;
+  left: var(--mj-margin);
+  top: var(--mj-top);
+  width: var(--mj-col-w);
+  height: var(--mj-content-h);
+  pointer-events: none;
+}
+.mj-paper-ruled .mj-rules {
+  background-image: linear-gradient(to bottom, transparent calc(var(--mj-lh) - 1px), var(--mj-rule) calc(var(--mj-lh) - 1px));
+  background-size: 100% var(--mj-lh);
+}
+.mj-paper-dotted .mj-rules {
+  background-image: radial-gradient(circle, var(--mj-faint) 1px, transparent 1.4px);
+  background-size: var(--mj-lh) var(--mj-lh);
+  background-position: calc(var(--mj-lh) / -2) calc(var(--mj-lh) / 2);
+  opacity: 0.75;
+}
+.mj-paper-grid .mj-rules {
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--mj-lh) - 1px), var(--mj-rule) calc(var(--mj-lh) - 1px)),
+    linear-gradient(to right, transparent calc(var(--mj-lh) - 1px), var(--mj-rule) calc(var(--mj-lh) - 1px));
+  background-size: var(--mj-lh) var(--mj-lh);
+  border-top: 1px solid var(--mj-rule);
+  margin-top: -1px;
+}
+.mj-pnum {
+  position: absolute;
+  left: var(--mj-margin);
+  right: var(--mj-margin);
+  bottom: 0;
+  height: var(--mj-bottom);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mj-font);
+  font-size: 11px;
+  color: var(--mj-faint);
+  pointer-events: none;
+  user-select: none;
+}
+.mj-paper-l .mj-pnum { justify-content: flex-start; }
+.mj-paper-r .mj-pnum { justify-content: flex-end; }
+.mj-no-pnum .mj-pnum { display: none; }
+
+/* the fold between the two pages of a spread */
+.mj-spine {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--mj-page-w) - 40px);
+  width: 80px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.035) 38%, var(--mj-shade) 50%, rgba(0, 0, 0, 0.035) 62%, transparent);
+}
+.mj-double .mj-spine { display: block; }
+
+/* ----- the writing surface: one column per page ----- */
+.mj-content {
+  position: absolute;
+  left: var(--mj-margin);
+  top: var(--mj-top);
+  height: var(--mj-content-h);
+  column-gap: calc(2 * var(--mj-margin));
+  column-fill: auto;
+  orphans: 1;
+  widows: 1;
+  outline: none;
+  font-family: var(--mj-font);
+  font-size: var(--mj-fs);
+  line-height: var(--mj-lh);
+  color: var(--mj-ink);
+  caret-color: var(--mj-accent);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  tab-size: 4;
+  font-variant-ligatures: common-ligatures;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.mj-content ::selection { background: var(--text-selection, rgba(120, 140, 200, 0.3)); }
+
+/* Every line is a whole number of rulings tall, so text stays on the lines. */
+.mj-line { min-height: var(--mj-lh); margin: 0; padding: 0; orphans: 1; widows: 1; }
+.mj-line.mj-h1 { font-size: 1.7em; line-height: calc(2 * var(--mj-lh)); min-height: calc(2 * var(--mj-lh)); font-weight: 700; letter-spacing: -0.01em; }
+.mj-line.mj-h2 { font-size: 1.35em; line-height: calc(2 * var(--mj-lh)); min-height: calc(2 * var(--mj-lh)); font-weight: 650; }
+.mj-line.mj-h3 { font-size: 1.15em; font-weight: 650; }
+.mj-line.mj-h4 { font-weight: 650; }
+.mj-line.mj-h5, .mj-line.mj-h6 { font-weight: 650; color: var(--mj-muted); }
+.mj-h1-newpage .mj-line.mj-h1:not(:first-child) { break-before: column; }
+/* Big headings sit in a blank band, like the title space on a journal page,
+   instead of having the ruling run through the letters. */
+.mj-line.mj-h1, .mj-line.mj-h2 { background: var(--mj-paper); }
+
+.mj-mark { color: var(--mj-faint); font-weight: normal; font-style: normal; }
+.mj-hide-syntax .mj-line:not(.mj-active) .mj-mark { display: none; }
+
+.mj-b { font-weight: 700; }
+.mj-i { font-style: italic; }
+.mj-s { text-decoration: line-through; }
+.mj-hlt { background: var(--mj-hl); border-radius: 2px; }
+.mj-ic { font-family: var(--font-monospace); font-size: 0.86em; line-height: 1; background: rgba(127, 127, 127, 0.13); border-radius: 3px; padding: 0 0.2em; }
+.mj-link { color: var(--mj-accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.mj-tag { color: var(--mj-accent); }
+
+/* List markers keep their width in both states, so bullets never jump. The
+   glyphs are zero-width inline boxes, not absolutely positioned: inside page
+   columns an absolute box at the foot of a page can be pushed to the next one. */
+.mj-bullet { color: transparent; }
+.mj-bullet::before { content: "•"; display: inline-block; width: 0; color: var(--mj-muted); }
+.mj-olmark { color: var(--mj-muted); }
+.mj-check { color: transparent; cursor: pointer; }
+.mj-check::before {
+  content: "";
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin: 0 -1.05em 0 0.15em;
+  vertical-align: -0.12em;
+  border: 1.5px solid var(--mj-muted);
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+.mj-task-done .mj-check::before {
+  border-color: var(--mj-accent);
+  background: var(--mj-accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 100% no-repeat;
+}
+.mj-line.mj-task-done { color: var(--mj-muted); }
+
+.mj-line.mj-quote { border-left: 2px solid var(--mj-rule); padding-left: 0.8em; color: var(--mj-muted); font-style: italic; }
+.mj-line.mj-hr { background: linear-gradient(var(--mj-faint), var(--mj-faint)) center / 30% 1px no-repeat; }
+.mj-hide-syntax .mj-line.mj-hr:not(.mj-active) .mj-hr-src { color: transparent; }
+.mj-line.mj-code, .mj-line.mj-fence { font-family: var(--font-monospace); font-size: 0.86em; background: rgba(127, 127, 127, 0.08); padding: 0 0.4em; }
+.mj-line.mj-fence { color: var(--mj-faint); }
+
+.mj-line.mj-pagebreak { break-after: column; color: var(--mj-faint); }
+.mj-hide-syntax .mj-line.mj-pagebreak:not(.mj-active)::after {
+  content: "· · ·  page break  · · ·";
+  display: block;
+  text-align: center;
+  font-size: 0.72em;
+  line-height: var(--mj-lh);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.mj-img { display: block; max-width: 100%; object-fit: contain; border-radius: 2px; user-select: none; }
+.mj-imgsrc { color: var(--mj-faint); }
+.mj-hide-syntax .mj-line.mj-image:not(.mj-active) .mj-imgsrc { display: none; }
+
+.mj-content.mj-empty .mj-line:first-child::before {
+  content: "Start writing…";
+  position: absolute;
+  color: var(--mj-faint);
+  pointer-events: none;
+}
+
+/* code blocks highlighted by Obsidian's Prism, coloured by the theme */
+.mj-line.mj-code { color: var(--code-normal, var(--mj-ink)); }
+.mj-content .token.comment, .mj-content .token.prolog, .mj-content .token.doctype, .mj-content .token.cdata { color: var(--code-comment, var(--mj-faint)); }
+.mj-content .token.keyword, .mj-content .token.atrule, .mj-content .token.important { color: var(--code-keyword, #c678dd); }
+.mj-content .token.string, .mj-content .token.char, .mj-content .token.attr-value, .mj-content .token.regex, .mj-content .token.url { color: var(--code-string, #98c379); }
+.mj-content .token.function, .mj-content .token.class-name { color: var(--code-function, #e5c07b); }
+.mj-content .token.number, .mj-content .token.boolean, .mj-content .token.constant, .mj-content .token.symbol { color: var(--code-value, #d19a66); }
+.mj-content .token.operator, .mj-content .token.entity { color: var(--code-operator, #e06c75); }
+.mj-content .token.punctuation { color: var(--code-punctuation, var(--mj-muted)); }
+.mj-content .token.property, .mj-content .token.variable, .mj-content .token.builtin, .mj-content .token.namespace { color: var(--code-property, #61afef); }
+.mj-content .token.tag, .mj-content .token.selector, .mj-content .token.attr-name { color: var(--code-tag, #e06c75); }
+
+/* ----- theme view: the pane is the page, in the user's theme ----- */
+.mj-root.mj-screen { --mj-desk: var(--background-primary); --mj-paper: transparent; }
+.mj-screen .mj-stage { background: transparent; box-shadow: none; border-radius: 0; }
+.mj-screen .mj-rules, .mj-screen .mj-spine { display: none; }
+/* fixed page in the theme view: a faint outline shows where the page ends */
+.mj-screen.mj-fixed .mj-stage { box-shadow: 0 0 0 1px var(--background-modifier-border); border-radius: 4px; }
+.mj-screen .mj-line.mj-code, .mj-screen .mj-line.mj-fence { background: var(--code-background, rgba(127, 127, 127, 0.08)); font-size: var(--code-size, 0.88em); }
+.mj-screen.mj-double .mj-paper-r::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--mj-top);
+  bottom: var(--mj-top);
+  border-left: 1px solid var(--background-modifier-border);
+}
+.mj-screen:not(.mj-narrow) .mj-bar { position: static; }
+.mj-screen:not(.mj-narrow) .mj-bar .mj-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 40px;
+  height: 64px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  font-size: 22px;
+}
+.mj-screen:not(.mj-narrow) .mj-bar .mj-nav:first-child { left: 6px; }
+.mj-screen:not(.mj-narrow) .mj-bar .mj-nav:nth-child(3) { right: 6px; }
+.mj-screen:not(.mj-narrow) .mj-bar .mj-nav:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
+.mj-screen .mj-bar { border-top: 1px solid var(--background-modifier-border); }
+.mj-screen:not(.mj-narrow) .mj-meta { position: static; transform: none; }
+.mj-screen:not(.mj-narrow) .mj-meta:not(:empty)::before { content: "· "; }
+
+/* ----- page bar ----- */
+.mj-bar {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 2px 12px 6px;
+  font-size: var(--font-ui-small, 13px);
+  color: var(--mj-muted);
+  user-select: none;
+}
+.mj-bar .mj-nav {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--mj-muted);
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+.mj-bar .mj-nav:disabled { opacity: 0.3; cursor: default; }
+.mj-info { min-width: 9em; text-align: center; font-variant-numeric: tabular-nums; }
+.mj-meta {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-variant-numeric: tabular-nums;
+  color: var(--mj-faint);
+}
+@media (max-width: 560px) { .mj-meta { display: none; } }
