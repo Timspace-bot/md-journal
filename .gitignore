@@ -1,5 +1,5 @@
 # build output (attached to GitHub releases, not committed)
-main.js
+/main.js
 *.js.map
 
 # dependencies, per-user plugin data
