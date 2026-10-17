@@ -2,10 +2,32 @@
  * Markdown, one line at a time — pure functions, no DOM and no Obsidian API.
  *
  * Lines render to a small node tree instead of HTML: a node is either a string
- * (a text node) or { cls, kids, tag?, attrs? } (an element). Every character of
- * the source line ends up in exactly one text node, in order, so the editor can
- * rely on a line element's textContent being exactly its Markdown source.
+ * (a text node) or an element. Every character of the source line ends up in
+ * exactly one text node, in order, so the editor can rely on a line element's
+ * textContent being exactly its Markdown source.
  */
+
+export interface MdElement {
+  tag?: 'span' | 'img' | 'br';
+  cls?: string;
+  kids?: MdNode[];
+  attrs?: Record<string, string>;
+}
+export type MdNode = string | MdElement;
+
+interface KindBase { key: string; nodes?: MdNode[] }
+export type LineKind =
+  | (KindBase & { type: 'blank' | 'pagebreak' | 'hr' | 'p' | 'code' })
+  | (KindBase & { type: 'fence'; lang?: string })
+  | (KindBase & { type: 'image'; src: string })
+  | (KindBase & { type: 'h'; level: number; prefix: number })
+  | (KindBase & { type: 'quote'; prefix: number })
+  | (KindBase & { type: 'ul'; indent: string; prefix: number })
+  | (KindBase & { type: 'ol'; indent: string; prefix: number; num: number; delim: string; space: string })
+  | (KindBase & { type: 'task'; indent: string; prefix: number; checkAt: number; checked: boolean });
+export type ListKind = Extract<LineKind, { type: 'ul' | 'ol' | 'task' }>;
+
+export const isList = (k: LineKind | undefined): k is ListKind => !!k && (k.type === 'ul' || k.type === 'ol' || k.type === 'task');
 
 const RE_FENCE = /^([ \t]*)(`{3,}|~{3,})(.*)$/;
 const RE_HEADING = /^(#{1,6})[ \t]+/;
@@ -19,13 +41,13 @@ const IMAGE_EXT = /\.(?:png|jpe?g|gif|webp|bmp|svg|avif)$/i;
 const RE_IMAGE_WIKI = /^\s*!\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]\s*$/;
 const RE_IMAGE_MD = /^\s*!\[[^\]]*\]\(<?([^)\s>]+)>?(?:\s+"[^"]*")?\)\s*$/;
 
-export function splitFrontmatter(text) {
+export function splitFrontmatter(text: string): { front: string; body: string } {
   const m = /^---[ \t]*\r?\n(?:[\s\S]*?\r?\n)?---[ \t]*(?:\r?\n|$)/.exec(text);
   if (!m) return { front: '', body: text };
   return { front: m[0], body: text.slice(m[0].length) };
 }
 
-export function lineKind(t) {
+export function lineKind(t: string): LineKind {
   if (!t.trim()) return { type: 'blank', key: 'blank' };
   if (RE_PAGEBREAK.test(t)) return { type: 'pagebreak', key: 'pagebreak' };
   let m = RE_IMAGE_WIKI.exec(t) || RE_IMAGE_MD.exec(t);
@@ -34,13 +56,13 @@ export function lineKind(t) {
   }
   if ((m = RE_HEADING.exec(t))) {
     const level = m[1].length;
-    return { type: 'h', level, prefix: m[0].length, key: 'h' + level };
+    return { type: 'h', level, prefix: m[0].length, key: 'h' + String(level) };
   }
   if (RE_HR.test(t)) return { type: 'hr', key: 'hr' };
   if ((m = RE_TASK.exec(t))) {
     const checkAt = m[1].length + m[2].length + m[3].length;
     const checked = m[4] !== ' ';
-    return { type: 'task', indent: m[1], checkAt, checked, prefix: m[0].length, key: 'task' + (checked ? 'x' : '') };
+    return { type: 'task', indent: m[1], checkAt, checked, prefix: m[0].length, key: checked ? 'taskx' : 'task' };
   }
   if ((m = RE_UL.exec(t))) return { type: 'ul', indent: m[1], prefix: m[0].length, key: 'ul' };
   if ((m = RE_OL.exec(t))) {
@@ -50,9 +72,9 @@ export function lineKind(t) {
   return { type: 'p', key: 'p' };
 }
 
-export function computeKinds(lines) {
-  const out = new Array(lines.length);
-  let fence = null;
+export function computeKinds(lines: string[]): LineKind[] {
+  const out: LineKind[] = new Array<LineKind>(lines.length);
+  let fence: { ch: string; len: number } | null = null;
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i];
     const f = RE_FENCE.exec(t);
@@ -77,20 +99,20 @@ export function computeKinds(lines) {
 
 /* ---------- node tree ---------- */
 
-const span = (cls, kids, attrs) => (attrs ? { cls, kids, attrs } : { cls, kids });
-const mark = (s) => span('mj-mark', [s]);
-const link = (text, href, cls = 'mj-link') => span(cls, [text], { 'data-href': href });
-const BR = { tag: 'br' };
+const span = (cls: string, kids: MdNode[], attrs?: Record<string, string>): MdElement => (attrs ? { cls, kids, attrs } : { cls, kids });
+const mark = (s: string): MdElement => span('mj-mark', [s]);
+const link = (text: string, href: string, cls = 'mj-link'): MdElement => span(cls, [text], { 'data-href': href });
+const BR: MdElement = { tag: 'br' };
 
 /* The source text of a node tree (what the DOM's textContent will be). */
-export function nodesText(nodes) {
+export function nodesText(nodes: MdNode[]): string {
   let s = '';
   for (const n of nodes) s += typeof n === 'string' ? n : n.kids ? nodesText(n.kids) : '';
   return s;
 }
 
 /* A compact, stable string for a node tree — used as a repaint key. */
-export function nodesKey(nodes) {
+export function nodesKey(nodes: MdNode[]): string {
   let s = '';
   for (const n of nodes) {
     if (typeof n === 'string') s += JSON.stringify(n);
@@ -99,7 +121,7 @@ export function nodesKey(nodes) {
   return s;
 }
 
-const isWordChar = (c) => !!c && /[\p{L}\p{N}_]/u.test(c);
+const isWordChar = (c: string | undefined): boolean => !!c && /[\p{L}\p{N}_]/u.test(c);
 
 const RE_CODE_SPAN = /(`+)(?!`)([\s\S]*?[^`])\1(?!`)/y;
 const RE_WIKILINK = /(!?\[\[)([^[\]\n]+?)(\]\])/y;
@@ -111,21 +133,21 @@ const RE_EM = /([*_])(?=[^\s*_])([\s\S]*?[^\s*_]|[^\s*_])\1/y;
 const RE_TAG = /#[\p{L}\p{N}_/-]*[\p{L}_/-][\p{L}\p{N}_/-]*/uy;
 const RE_URL = /https?:\/\/[^\s<>()[\]]*[^\s<>()[\].,;:!?'"]/y;
 
-function at(re, s, i) {
+function at(re: RegExp, s: string, i: number): RegExpExecArray | null {
   re.lastIndex = i;
   return re.exec(s);
 }
 
 /* One line of inline Markdown: bold, italic, code, links, tags… with their marks. */
-export function renderInline(s) {
-  const out = [];
+export function renderInline(s: string): MdNode[] {
+  const out: MdNode[] = [];
   let buf = '';
   let i = 0;
   while (i < s.length) {
     const c = s[i];
     const prev = i > 0 ? s[i - 1] : '';
-    let m = null;
-    let nodes = null;
+    let m: RegExpExecArray | null = null;
+    let nodes: MdNode[] | null = null;
     if (c === '`' && (m = at(RE_CODE_SPAN, s, i))) {
       nodes = [mark(m[1]), span('mj-ic', [m[2]]), mark(m[1])];
     } else if ((c === '[' || c === '!') && (m = at(RE_WIKILINK, s, i))) {
@@ -151,7 +173,7 @@ export function renderInline(s) {
     } else if (c === 'h' && !isWordChar(prev) && (m = at(RE_URL, s, i))) {
       nodes = [link(m[0], m[0])];
     }
-    if (nodes) {
+    if (nodes && m) {
       if (buf) { out.push(buf); buf = ''; }
       out.push(...nodes);
       i += m[0].length;
@@ -164,9 +186,9 @@ export function renderInline(s) {
   return out;
 }
 
-export function renderLine(text, k, resolveImage) {
-  const orBr = (nodes) => (nodes.length ? nodes : [BR]);
-  const pre = (s) => (s ? [s] : []);
+export function renderLine(text: string, k: LineKind, resolveImage?: (src: string) => string | null): MdNode[] {
+  const orBr = (nodes: MdNode[]): MdNode[] => (nodes.length ? nodes : [BR]);
+  const pre = (s: string): MdNode[] => (s ? [s] : []);
   switch (k.type) {
     case 'code':
       if (k.nodes) return orBr(k.nodes);
@@ -190,7 +212,7 @@ export function renderLine(text, k, resolveImage) {
         ...pre(text.slice(k.checkAt + 3, k.prefix)), ...renderInline(text.slice(k.prefix))];
     case 'image': {
       const src = resolveImage ? resolveImage(k.src) : null;
-      const nodes = [span('mj-imgsrc', [text])];
+      const nodes: MdNode[] = [span('mj-imgsrc', [text])];
       if (src) nodes.push({ tag: 'img', cls: 'mj-img', attrs: { src, alt: '', contenteditable: 'false', draggable: 'false' } });
       return nodes;
     }
@@ -199,16 +221,27 @@ export function renderLine(text, k, resolveImage) {
   }
 }
 
-export function lineClass(k) {
+export function lineClass(k: LineKind): string {
   let c = 'mj-line mj-' + k.type;
-  if (k.type === 'h') c += ' mj-h' + k.level;
+  if (k.type === 'h') c += ' mj-h' + String(k.level);
   if (k.type === 'task' && k.checked) c += ' mj-task-done';
   return c;
 }
 
 /* ---------- code highlighting ---------- */
 
-const PRISM_ALIASES = {
+export interface PrismToken {
+  type: string;
+  alias?: string | string[];
+  content: PrismContent;
+}
+export type PrismContent = string | PrismToken | PrismContent[];
+export interface PrismLike {
+  languages: Record<string, unknown>;
+  tokenize(code: string, grammar: unknown): PrismContent[];
+}
+
+const PRISM_ALIASES: Record<string, string> = {
   ps1: 'powershell', ps: 'powershell', pwsh: 'powershell', sh: 'bash', shell: 'bash', zsh: 'bash', js: 'javascript',
   ts: 'typescript', py: 'python', 'c++': 'cpp', cs: 'csharp', 'c#': 'csharp', md: 'markdown', yml: 'yaml',
   html: 'markup', xml: 'markup', svg: 'markup', rb: 'ruby', rs: 'rust', kt: 'kotlin',
@@ -216,14 +249,14 @@ const PRISM_ALIASES = {
 
 /* Highlights a fenced block with Prism and splits the tokens back into one node
    list per source line (tokens may span lines, e.g. here-strings). */
-export function prismLines(Prism, code, lang) {
-  if (!Prism || !Prism.languages || !Prism.tokenize) return null;
-  const grammar = Prism.languages[lang] || Prism.languages[PRISM_ALIASES[lang]];
+export function prismLines(prism: PrismLike | null | undefined, code: string, lang: string): MdNode[][] | null {
+  if (!prism || !prism.languages || typeof prism.tokenize !== 'function') return null;
+  const grammar = prism.languages[lang] ?? prism.languages[PRISM_ALIASES[lang] ?? ''];
   if (!grammar) return null;
-  let tokens;
-  try { tokens = Prism.tokenize(code, grammar); } catch { return null; }
-  const lines = [[]];
-  const walk = (tok, cls) => {
+  let tokens: PrismContent[];
+  try { tokens = prism.tokenize(code, grammar); } catch { return null; }
+  const lines: MdNode[][] = [[]];
+  const walk = (tok: PrismContent, cls: string): void => {
     if (typeof tok === 'string') {
       tok.split('\n').forEach((part, i) => {
         if (i) lines.push([]);
@@ -231,8 +264,9 @@ export function prismLines(Prism, code, lang) {
       });
     } else if (Array.isArray(tok)) {
       for (const t of tok) walk(t, cls);
-    } else if (tok) {
-      const own = 'token ' + tok.type + (tok.alias ? ' ' + [].concat(tok.alias).join(' ') : '');
+    } else {
+      const alias = tok.alias ? ' ' + ([] as string[]).concat(tok.alias).join(' ') : '';
+      const own = 'token ' + tok.type + alias;
       walk(tok.content, cls ? cls + ' ' + own : own);
     }
   };
@@ -244,23 +278,23 @@ export function prismLines(Prism, code, lang) {
 
 /* What a new line after `line` should start with (list continuation). Returns
    null when Enter should end the list instead, '' for a plain new line. */
-export function continuationPrefix(line, k, ch) {
-  if (!k || !['ul', 'ol', 'task', 'quote'].includes(k.type) || ch < k.prefix) return '';
+export function continuationPrefix(line: string, k: LineKind | undefined, ch: number): string | null {
+  if (!k || !(isList(k) || k.type === 'quote') || ch < k.prefix) return '';
   if (!line.slice(k.prefix).trim()) return null;
   if (k.type === 'task') return line.slice(0, k.checkAt) + '[ ] ';
-  if (k.type === 'ol') return k.indent + (k.num + 1) + k.delim + k.space;
+  if (k.type === 'ol') return k.indent + String(k.num + 1) + k.delim + k.space;
   return line.slice(0, k.prefix);
 }
 
-let graphemes = null;
-function segmenter() {
+let graphemes: Intl.Segmenter | false | null = null;
+function segmenter(): Intl.Segmenter | false {
   if (graphemes === null) {
-    graphemes = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : false;
+    graphemes = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : false;
   }
   return graphemes;
 }
 
-export function prevBoundary(s, ch) {
+export function prevBoundary(s: string, ch: number): number {
   if (ch <= 0) return 0;
   const seg = segmenter();
   if (seg) {
@@ -273,7 +307,7 @@ export function prevBoundary(s, ch) {
   return c >= 0xdc00 && c <= 0xdfff && ch >= 2 ? ch - 2 : ch - 1;
 }
 
-export function nextBoundary(s, ch) {
+export function nextBoundary(s: string, ch: number): number {
   if (ch >= s.length) return s.length;
   const seg = segmenter();
   if (seg) {
@@ -283,8 +317,9 @@ export function nextBoundary(s, ch) {
   return c >= 0xd800 && c <= 0xdbff && ch + 2 <= s.length ? ch + 2 : ch + 1;
 }
 
-const isSpace = (c) => /\s/.test(c);
-export function prevWordStart(s, ch) {
+const isSpace = (c: string): boolean => /\s/.test(c);
+
+export function prevWordStart(s: string, ch: number): number {
   let i = ch;
   while (i > 0 && isSpace(s[i - 1])) i--;
   if (i > 0 && isWordChar(s[i - 1])) while (i > 0 && isWordChar(s[i - 1])) i--;
@@ -292,7 +327,7 @@ export function prevWordStart(s, ch) {
   return i;
 }
 
-export function nextWordEnd(s, ch) {
+export function nextWordEnd(s: string, ch: number): number {
   let i = ch;
   while (i < s.length && isSpace(s[i])) i++;
   if (i < s.length && isWordChar(s[i])) while (i < s.length && isWordChar(s[i])) i++;
@@ -300,7 +335,7 @@ export function nextWordEnd(s, ch) {
   return i;
 }
 
-export function countWords(text) {
+export function countWords(text: string): number {
   const m = text.match(/[\p{L}\p{N}][\p{L}\p{N}'’_-]*/gu);
   return m ? m.length : 0;
 }

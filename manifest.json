@@ -1,7 +1,7 @@
 {
   "id": "md-journal",
   "name": "MD Journal",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "minAppVersion": "1.10.0",
   "description": "Write on book pages that fill up and continue onto the next page, in your theme or on ruled journal paper.",
   "author": "Timspace-bot",

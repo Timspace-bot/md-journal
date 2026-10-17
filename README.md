@@ -135,22 +135,23 @@ Until MD Journal is listed in **Community plugins**:
 
 ## Development
 
+MD Journal is written in TypeScript and bundled with esbuild.
+
 ```
 npm install
-npm run build     # src/ -> main.js (esbuild)
+npm run build     # type-check, then src/ -> main.js
 npm run dev       # rebuild on change
-npm run lint      # Obsidian's official ESLint rules
-npm run lint:scanner  # the same rules with type information, as the community directory scanner runs them
+npm run lint      # Obsidian's official ESLint rules, type-aware, as the community directory runs them
 npm test          # Markdown, page geometry and code highlighting logic
 npm run harness   # http://localhost:5178/tests/harness.html — the editor in a browser
 ```
 
 The harness bundles the real source with a small stand-in for the `obsidian` module. It
-offers switches for layout, fixed page, dark theme, page mode, paper colour and paper
-style.
+has switches for layout, fixed page, dark theme, page mode, paper colour and paper style.
 
-Releases are built by GitHub Actions: pushing a tag such as `0.1.0` builds `main.js` and
-attaches it to a GitHub release with `manifest.json` and `styles.css`.
+Releases are built by GitHub Actions. Pushing a tag such as `0.2.0` type-checks, lints,
+tests and builds `main.js`. It then signs build-provenance attestations for the release
+files and attaches them to a GitHub release. See [CONTRIBUTING.md](CONTRIBUTING.md) to help out.
 
 ## Credits
 

@@ -1,10 +1,15 @@
-import { MarkdownView, Notice, Plugin, TFile, TFolder, loadPrism, moment, normalizePath } from 'obsidian';
-import { DEFAULT_SETTINGS, PAGEBREAK_LINE, VIEW_TYPE_JOURNAL } from './constants.js';
-import { JournalView } from './view.js';
-import { AppearanceModal, JournalSettingTab } from './settings.js';
+import { MarkdownView, Notice, Plugin, TFile, TFolder, loadPrism, moment, normalizePath, type WorkspaceLeaf } from 'obsidian';
+import { DEFAULT_SETTINGS, PAGEBREAK_LINE, VIEW_TYPE_JOURNAL, type JournalSettings } from './constants';
+import type { PrismLike } from './markdown';
+import { JournalView } from './view';
+import { AppearanceModal, JournalSettingTab } from './settings';
 
 export default class MdJournalPlugin extends Plugin {
-  async onload() {
+  // Kept off Plugin.settings, which only exists from Obsidian 1.13.
+  config: JournalSettings = { ...DEFAULT_SETTINGS, positions: {} };
+  prism: PrismLike | null = null;
+
+  async onload(): Promise<void> {
     await this.loadSettings();
     this.registerView(VIEW_TYPE_JOURNAL, (leaf) => new JournalView(leaf, this));
     void this.loadHighlighter();
@@ -15,9 +20,9 @@ export default class MdJournalPlugin extends Plugin {
       id: 'open-current-as-journal',
       name: 'Open current note as journal',
       checkCallback: (checking) => {
-        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!view || !view.file) return false;
-        if (!checking) void this.openFile(view.file);
+        const file = this.app.workspace.getActiveViewOfType(MarkdownView)?.file;
+        if (!file) return false;
+        if (!checking) void this.openFile(file);
         return true;
       },
     });
@@ -26,29 +31,25 @@ export default class MdJournalPlugin extends Plugin {
       name: 'Toggle between journal and editor',
       checkCallback: (checking) => {
         const ws = this.app.workspace;
-        const view = ws.getActiveViewOfType(JournalView) || ws.getActiveViewOfType(MarkdownView);
-        if (!view || !view.file) return false;
-        if (!checking) void this.switchLeaf(view.leaf, view instanceof JournalView ? 'markdown' : VIEW_TYPE_JOURNAL);
+        const journal = ws.getActiveViewOfType(JournalView);
+        const view = journal ?? ws.getActiveViewOfType(MarkdownView);
+        if (!view?.file) return false;
+        if (!checking) void this.switchLeaf(view.leaf, journal ? 'markdown' : VIEW_TYPE_JOURNAL);
         return true;
       },
     });
-    this.addJournalCommand('insert-date-heading', 'Insert date heading', (v) => {
-      v.editor.insertBlock('## ' + moment().format(this.config.dateFormat || DEFAULT_SETTINGS.dateFormat));
+    this.addJournalCommand('insert-date-heading', 'Insert date heading', (editor) => {
+      editor.insertBlock('## ' + moment().format(this.config.dateFormat || DEFAULT_SETTINGS.dateFormat));
     });
-    this.addJournalCommand('insert-page-break', 'Insert page break', (v) => v.editor.insertBlock(PAGEBREAK_LINE));
-    this.addJournalCommand('next-page', 'Next page', (v) => v.editor.flip(1));
-    this.addJournalCommand('previous-page', 'Previous page', (v) => v.editor.flip(-1));
+    this.addJournalCommand('insert-page-break', 'Insert page break', (editor) => editor.insertBlock(PAGEBREAK_LINE));
+    this.addJournalCommand('next-page', 'Next page', (editor) => editor.flip(1));
+    this.addJournalCommand('previous-page', 'Previous page', (editor) => editor.flip(-1));
     this.addCommand({ id: 'appearance', name: 'Journal appearance', callback: () => new AppearanceModal(this.app, this).open() });
     this.addCommand({ id: 'toggle-layout', name: 'Switch between theme view and journal pages', callback: () => { void this.toggleLayout(); } });
     this.addCommand({
       id: 'toggle-fixed-page',
       name: 'Toggle fixed page in the theme view',
-      callback: async () => {
-        this.config.fixedPage = !this.config.fixedPage;
-        await this.saveSettings();
-        this.refreshViews();
-        new Notice(this.config.fixedPage ? 'Fixed page: every page keeps the same text when the window is resized.' : 'Pages now fill the window.');
-      },
+      callback: () => { void this.toggleFixedPage(); },
     });
 
     this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
@@ -58,38 +59,38 @@ export default class MdJournalPlugin extends Plugin {
     this.addSettingTab(new JournalSettingTab(this.app, this));
   }
 
-  addJournalCommand(id, name, run) {
+  private addJournalCommand(id: string, name: string, run: (editor: NonNullable<JournalView['editor']>) => void): void {
     this.addCommand({
       id,
       name,
       checkCallback: (checking) => {
-        const v = this.app.workspace.getActiveViewOfType(JournalView);
-        if (!v || !v.editor) return false;
-        if (!checking) run(v);
+        const editor = this.app.workspace.getActiveViewOfType(JournalView)?.editor;
+        if (!editor) return false;
+        if (!checking) run(editor);
         return true;
       },
     });
   }
 
   /* Obsidian's own Prism, so code blocks look like they do in reading view. */
-  async loadHighlighter() {
+  private async loadHighlighter(): Promise<void> {
     try {
-      this.prism = await loadPrism();
+      this.prism = (await loadPrism()) as PrismLike;
       this.refreshViews(true);
     } catch {
       // no highlighting; code still shows as plain monospace
     }
   }
 
-  async loadSettings() {
-    const data = (await this.loadData()) || {};
+  async loadSettings(): Promise<void> {
+    const data = ((await this.loadData()) ?? {}) as Partial<JournalSettings>;
     this.config = { ...DEFAULT_SETTINGS, ...data };
-    if (!this.config.positions || typeof this.config.positions !== 'object') this.config.positions = {};
+    if (typeof this.config.positions !== 'object' || this.config.positions === null) this.config.positions = {};
   }
 
-  async saveSettings() { await this.saveData(this.config); }
+  async saveSettings(): Promise<void> { await this.saveData(this.config); }
 
-  refreshViews(repaint) {
+  refreshViews(repaint = false): void {
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_JOURNAL)) {
       const view = leaf.view;
       if (!(view instanceof JournalView) || !view.editor) continue;
@@ -98,13 +99,20 @@ export default class MdJournalPlugin extends Plugin {
     }
   }
 
-  async toggleLayout() {
+  async toggleLayout(): Promise<void> {
     this.config.layout = this.config.layout === 'screen' ? 'journal' : 'screen';
     await this.saveSettings();
     this.refreshViews();
   }
 
-  async openFile(file) {
+  private async toggleFixedPage(): Promise<void> {
+    this.config.fixedPage = !this.config.fixedPage;
+    await this.saveSettings();
+    this.refreshViews();
+    new Notice(this.config.fixedPage ? 'Fixed page: every page keeps the same text when the window is resized.' : 'Pages now fill the window.');
+  }
+
+  async openFile(file: TFile): Promise<void> {
     const ws = this.app.workspace;
     const existing = ws.getLeavesOfType(VIEW_TYPE_JOURNAL).find((l) => l.view instanceof JournalView && l.view.file === file);
     if (existing) { ws.setActiveLeaf(existing, { focus: true }); return; }
@@ -114,16 +122,16 @@ export default class MdJournalPlugin extends Plugin {
     ws.setActiveLeaf(leaf, { focus: true });
   }
 
-  async switchLeaf(leaf, type) {
+  async switchLeaf(leaf: WorkspaceLeaf, type: string): Promise<void> {
     const view = leaf.view;
-    const file = view && view.file;
+    const file = view instanceof JournalView || view instanceof MarkdownView ? view.file : null;
     if (!file) return;
     if (view instanceof JournalView) await view.flush();
     const state = type === 'markdown' ? { file: file.path, mode: 'source' } : { file: file.path };
     await leaf.setViewState({ type, state, active: true });
   }
 
-  async openJournal() {
+  async openJournal(): Promise<void> {
     let path = normalizePath(this.config.journalFile || 'Journal.md');
     if (!/\.md$/i.test(path)) path += '.md';
     let file = this.app.vault.getAbstractFileByPath(path);

@@ -54,6 +54,7 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 14px 34px rgba(0, 0, 0, 0.22);
 }
 .mj-track { position: absolute; left: 0; top: 0; height: 100%; will-change: transform; }
+.mj-track.mj-animate { transition: transform 0.38s cubic-bezier(0.25, 0.75, 0.25, 1); }
 
 .mj-paper {
   position: absolute;
@@ -120,6 +121,8 @@
   background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.035) 38%, var(--mj-shade) 50%, rgba(0, 0, 0, 0.035) 62%, transparent);
 }
 .mj-double .mj-spine { display: block; }
+/* stylelint-disable-next-line plugin/no-unsupported-browser-features -- multicolumn and column breaks work in Chromium, which Obsidian runs on (checked on Chrome 152); caniuse marks the feature partial only for older break values */
+.mj-double .mj-content { column-count: 2; }
 
 /* ----- the writing surface: one column per page ----- */
 .mj-content {
@@ -127,7 +130,11 @@
   left: var(--mj-margin);
   top: var(--mj-top);
   height: var(--mj-content-h);
+  /* stylelint-disable-next-line plugin/no-unsupported-browser-features -- multicolumn and column breaks work in Chromium, which Obsidian runs on (checked on Chrome 152); caniuse marks the feature partial only for older break values */
+  column-count: 1;
+  /* stylelint-disable-next-line plugin/no-unsupported-browser-features -- multicolumn and column breaks work in Chromium, which Obsidian runs on (checked on Chrome 152); caniuse marks the feature partial only for older break values */
   column-gap: calc(2 * var(--mj-margin));
+  /* stylelint-disable-next-line plugin/no-unsupported-browser-features -- multicolumn and column breaks work in Chromium, which Obsidian runs on (checked on Chrome 152); caniuse marks the feature partial only for older break values */
   column-fill: auto;
   orphans: 1;
   widows: 1;
@@ -153,6 +160,7 @@
 .mj-line.mj-h3 { font-size: 1.15em; font-weight: 650; }
 .mj-line.mj-h4 { font-weight: 650; }
 .mj-line.mj-h5, .mj-line.mj-h6 { font-weight: 650; color: var(--mj-muted); }
+/* stylelint-disable-next-line plugin/no-unsupported-browser-features -- multicolumn and column breaks work in Chromium, which Obsidian runs on (checked on Chrome 152); caniuse marks the feature partial only for older break values */
 .mj-h1-newpage .mj-line.mj-h1:not(:first-child) { break-before: column; }
 /* Big headings sit in a blank band, like the title space on a journal page,
    instead of having the ruling run through the letters. */
@@ -166,7 +174,7 @@
 .mj-s { text-decoration: line-through; }
 .mj-hlt { background: var(--mj-hl); border-radius: 2px; }
 .mj-ic { font-family: var(--font-monospace); font-size: 0.86em; line-height: 1; background: rgba(127, 127, 127, 0.13); border-radius: 3px; padding: 0 0.2em; }
-.mj-link { color: var(--mj-accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.mj-link { color: var(--mj-accent); text-decoration: underline; }
 .mj-tag { color: var(--mj-accent); }
 
 /* List markers keep their width in both states, so bullets never jump. The
@@ -199,6 +207,7 @@
 .mj-line.mj-code, .mj-line.mj-fence { font-family: var(--font-monospace); font-size: 0.86em; background: rgba(127, 127, 127, 0.08); padding: 0 0.4em; }
 .mj-line.mj-fence { color: var(--mj-faint); }
 
+/* stylelint-disable-next-line plugin/no-unsupported-browser-features -- multicolumn and column breaks work in Chromium, which Obsidian runs on (checked on Chrome 152); caniuse marks the feature partial only for older break values */
 .mj-line.mj-pagebreak { break-after: column; color: var(--mj-faint); }
 .mj-hide-syntax .mj-line.mj-pagebreak:not(.mj-active)::after {
   content: "· · ·  page break  · · ·";

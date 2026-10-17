@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {
   renderInline, renderLine, computeKinds, lineKind, splitFrontmatter, continuationPrefix, prevBoundary, nextBoundary,
   prevWordStart, nextWordEnd, countWords, prismLines, nodesText, nodesKey,
-} from '../src/markdown.js';
-import { pageGeometry, screenGeometry } from '../src/geometry.js';
-import { DEFAULT_SETTINGS, PAGE_SIZES } from '../src/constants.js';
+} from '../src/markdown';
+import { pageGeometry, screenGeometry } from '../src/geometry';
+import { DEFAULT_SETTINGS, PAGE_SIZES } from '../src/constants';
 
 let passed = 0;
 const test = (name, fn) => {

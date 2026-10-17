@@ -1,11 +1,31 @@
-import { PAGE_SIZES, PX_PER_MM } from './constants.js';
+import { PAGE_SIZES, PX_PER_MM, type JournalSettings } from './constants';
 
-const clamp = (v, lo, hi, d) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+export interface Geometry {
+  W: number;        // page width (px, unscaled), also the page stride
+  H: number;        // page height
+  fs: number;       // font size
+  lh: number;       // line height (one ruling)
+  m: number;        // side margin
+  colW: number;     // text column width
+  gap: number;      // gap between columns (two margins)
+  top: number;      // top margin
+  contentH: number; // text area height
+  bottom: number;   // bottom margin
+}
+
+export interface ScreenGeometry extends Geometry {
+  n: number;        // pages visible at once
+  narrow: boolean;
+}
+
+type GeometrySettings = Pick<JournalSettings, 'pageSize' | 'customWidth' | 'customHeight' | 'fontSize' | 'lineHeight' | 'margin'>;
+
+const clamp = (v: number, lo: number, hi: number, d: number): number => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
 
 /* A fixed page: real size in mm, text area a whole number of lines tall. It never
    depends on the window, so page breaks never move; the page is scaled to fit. */
-export function pageGeometry(s) {
-  const preset = PAGE_SIZES[s.pageSize] || PAGE_SIZES.a5;
+export function pageGeometry(s: GeometrySettings): Geometry {
+  const preset = PAGE_SIZES[s.pageSize] ?? PAGE_SIZES.a5;
   const wMm = s.pageSize === 'custom' ? s.customWidth : preset.w;
   const hMm = s.pageSize === 'custom' ? s.customHeight : preset.h;
   const W = Math.round(clamp(wMm, 50, 420, 148) * PX_PER_MM);
@@ -20,7 +40,9 @@ export function pageGeometry(s) {
 }
 
 /* The theme view: the page is whatever the pane gives us. */
-export function screenGeometry(vw, vh, s, fs, phone) {
+export function screenGeometry(
+  vw: number, vh: number, s: Pick<JournalSettings, 'lineHeight' | 'pageMode' | 'screenMaxWidth'>, fs: number, phone: boolean,
+): ScreenGeometry {
   const narrow = vw < 600;
   const side = narrow ? 12 : 56; // room for the side page buttons
   const gap = narrow ? 24 : 64;

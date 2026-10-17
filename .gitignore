@@ -10,3 +10,4 @@ data.json
 Thumbs.db
 *.log
 tests/harness.bundle.js
+tests/.out/
